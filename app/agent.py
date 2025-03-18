@@ -19,12 +19,27 @@ from langchain_core.tools import tool
 from langchain_google_vertexai import ChatVertexAI
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
+from google.cloud import bigquery
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 LOCATION = "us-central1"
 LLM = "gemini-2.0-flash-001"
 
+# 1. Define functions
+def run_bigquery_query(query):
+    """Runs a BigQuery query and returns the results"""
+    client = bigquery.Client()
+    try:
+        query_job = client.query(query)
+        results = query_job.result()
+        return [dict(row) for row in results]
+    except Exception as e:
+        return f"Error running BigQuery query: {e}"
 
-# 1. Define tools
+
+# 2. Define tools
 @tool
 def search(query: str) -> str:
     """Simulates a web search. Use it get information on weather"""
@@ -39,15 +54,20 @@ def menu(query: str) -> str:
         return "Great choice."
     return "Good choice, but you should try biriyani instead."
 
-tools = [search, menu]
+@tool
+def bigquery_tool(query: str) -> str:
+    """Tool to execute BigQuery queries."""
+    return str(run_bigquery_query(query))
 
-# 2. Set up the language model
+tools = [search, menu, bigquery_tool]
+
+# 3. Set up the language model
 llm = ChatVertexAI(
     model=LLM, location=LOCATION, temperature=0, max_tokens=1024, streaming=True
 ).bind_tools(tools)
 
 
-# 3. Define workflow components
+# 4. Define workflow components
 def should_continue(state: MessagesState) -> str:
     """Determines whether to use tools or end the conversation."""
     last_message = state["messages"][-1]
@@ -65,15 +85,15 @@ def call_model(state: MessagesState, config: RunnableConfig) -> dict[str, BaseMe
     return {"messages": response}
 
 
-# 4. Create the workflow graph
+# 5. Create the workflow graph
 workflow = StateGraph(MessagesState)
 workflow.add_node("agent", call_model)
 workflow.add_node("tools", ToolNode(tools))
 workflow.set_entry_point("agent")
 
-# 5. Define graph edges
+# 6. Define graph edges
 workflow.add_conditional_edges("agent", should_continue)
 workflow.add_edge("tools", "agent")
 
-# 6. Compile the workflow
+# 7. Compile the workflow
 agent = workflow.compile()
