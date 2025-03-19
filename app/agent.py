@@ -36,13 +36,20 @@ LLM = "gemini-2.0-flash-001"
 def run_bigquery_query(query):
     """Runs DML and DDL BigQuery query and returns the results"""
     client = bigquery.Client()
-    try:
-        query_job = client.query(query)
-        results = query_job.result()
-        # Convert the results to a DataFrame directly
-        return results.to_dataframe()
-    except Exception as e:
-        return f"Error running BigQuery query: {e}"
+    if (
+        "drop" in query.lower()
+        or "delete" in query.lower()
+        or "truncate" in query.lower()
+    ):
+        return f"Deletion actions are not permitted."
+    else:
+        try:
+            query_job = client.query(query)
+            results = query_job.result()
+            # Convert the results to a DataFrame directly
+            return results.to_dataframe()
+        except Exception as e:
+            return f"Error running BigQuery query: {e}"
 
 
 # 2. Define tools
