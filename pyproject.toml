@@ -18,7 +18,10 @@ dependencies = [
     "traceloop-sdk~=0.38.7",
     "google-cloud-logging~=3.11.4",
     "google-cloud-aiplatform[evaluation,langchain,reasoningengine]~=1.81.0",
-    "google-cloud-bigquery"
+    "google-cloud-bigquery",
+    "pandas",
+    "streamlit",
+    "db-dtypes"
 ]
 
 requires-python = ">=3.10,<3.13"

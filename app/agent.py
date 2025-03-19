@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+
+import pandas as pd
+import streamlit as st
+from google.cloud import bigquery
+
 # mypy: disable-error-code="union-attr"
 from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
@@ -19,47 +25,34 @@ from langchain_core.tools import tool
 from langchain_google_vertexai import ChatVertexAI
 from langgraph.graph import END, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
-from google.cloud import bigquery
-import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
 LOCATION = "us-central1"
 LLM = "gemini-2.0-flash-001"
 
+
 # 1. Define functions
 def run_bigquery_query(query):
-    """Runs a BigQuery query and returns the results"""
+    """Runs DML and DDL BigQuery query and returns the results"""
     client = bigquery.Client()
     try:
         query_job = client.query(query)
         results = query_job.result()
-        return [dict(row) for row in results]
+        # Convert the results to a DataFrame directly
+        return results.to_dataframe()
     except Exception as e:
         return f"Error running BigQuery query: {e}"
 
 
 # 2. Define tools
 @tool
-def search(query: str) -> str:
-    """Simulates a web search. Use it get information on weather"""
-    if "sf" in query.lower() or "san francisco" in query.lower():
-        return "It's 60 degrees and foggy."
-    return "It's 90 degrees and sunny."
+def bigquery_tool(query: str):
+    """Tool to run DML and DDL BigQuery queries."""
+    return run_bigquery_query(query)
 
-@tool
-def menu(query: str) -> str:
-    """Checks if the menu item has biriyani or not."""
-    if "biriyani" in query.lower():
-        return "Great choice."
-    return "Good choice, but you should try biriyani instead."
 
-@tool
-def bigquery_tool(query: str) -> str:
-    """Tool to execute BigQuery queries."""
-    return str(run_bigquery_query(query))
-
-tools = [search, menu, bigquery_tool]
+tools = [bigquery_tool]
 
 # 3. Set up the language model
 llm = ChatVertexAI(

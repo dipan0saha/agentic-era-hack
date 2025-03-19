@@ -22,6 +22,7 @@ from typing import Any
 import streamlit as st
 from langchain_core.messages import HumanMessage
 from streamlit_feedback import streamlit_feedback
+import pandas as pd
 
 from frontend.side_bar import SideBar
 from frontend.style.app_markdown import MARKDOWN_STR
@@ -74,10 +75,27 @@ def display_messages() -> None:
     tool_calls_map = {}  # Map tool_call_id to tool call input
 
     for i, message in enumerate(messages):
+        # display_chat_message(type(message["content"]), i)
         if message["type"] in ["ai", "human"] and message["content"]:
             display_chat_message(message, i)
         elif message.get("tool_calls"):
             # Store each tool call input mapped by its ID
+            if message["type"] == "ai" and message.get("tool_calls"):
+                for tool_call in message["tool_calls"]:
+                    tool_calls_map[tool_call["id"]] = tool_call
+            elif message["type"] == "ai" and message.get("content") and isinstance(message["content"], list):
+                for content in message["content"]:
+                    if isinstance(content, dict) and content.get("type") == "table":
+                        st.table(content["data"])
+                    else:
+                        st.markdown(format_content(content), unsafe_allow_html=True)
+            elif message["type"] == "ai" and message.get("content") and isinstance(message["content"], str):
+                st.markdown(format_content(message["content"]), unsafe_allow_html=True)
+            elif message["type"] == "human" and message.get("content") and isinstance(message["content"], list):
+                st.markdown(format_content(message["content"]), unsafe_allow_html=True)
+            elif message["type"] == "human" and message.get("content") and isinstance(message["content"], str):
+                st.markdown(format_content(message["content"]), unsafe_allow_html=True)
+
             for tool_call in message["tool_calls"]:
                 tool_calls_map[tool_call["id"]] = tool_call
         elif message["type"] == "tool":
